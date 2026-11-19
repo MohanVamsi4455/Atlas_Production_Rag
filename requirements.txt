@@ -34,3 +34,6 @@ langgraph>=0.2,<2               # Graph-based orchestration of the RAG / agent w
 # Observability
 # ---------------------------------------------------------------
 glassflow-rius>=1.0,<2.0        # Observability / tracing (TODO: verify package name on PyPI before installing)
+
+
+openai
