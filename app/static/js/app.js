@@ -3,8 +3,26 @@
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
+// crypto.randomUUID() and navigator.clipboard exist only on HTTPS or localhost. Atlas is also served over plain
+// HTTP (for example http://<server-ip>:8000), so use fallbacks that work everywhere.
+const newId = () => {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(b); else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+};
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return; }
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'; document.body.append(ta); ta.select();
+  const ok = document.execCommand('copy'); ta.remove();
+  if (!ok) throw Error('copy failed');
+}
+
 // Single-workspace conversation identifier, not an authentication token.
-let conversationId = sessionStorage.getItem('atlas_conversation_id') || crypto.randomUUID();
+let conversationId = sessionStorage.getItem('atlas_conversation_id') || newId();
 sessionStorage.setItem('atlas_conversation_id', conversationId);
 let busy = false;
 
@@ -256,7 +274,7 @@ function addMessage(content, kind, opts = {}) {
     const actions = el('div', 'actions');
     const copy = el('button', null, '⧉ Copy');
     if (status === 'guardrail_blocked') copy.classList.add('hidden');
-    copy.onclick = async () => { try { await navigator.clipboard.writeText(content); toast('Copied'); } catch { toast('Copy failed'); } };
+    copy.onclick = async () => { try { await copyText(content); toast('Copied'); } catch { toast('Copy failed'); } };
     actions.append(copy);
     if (sources.length) {
       const rate = (label, rating) => {
@@ -383,7 +401,7 @@ async function switchThread(id) {
 }
 function startThread() {
   if (busy) { toast('Wait for the current answer to finish'); return; }
-  view('chat'); setConversation(crypto.randomUUID());
+  view('chat'); setConversation(newId());
   $('messages').replaceChildren(); updateHero(); loadThreads(); box.focus();
 }
 $('newChat').onclick = startThread;

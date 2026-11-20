@@ -50,7 +50,9 @@ class Feedback(BaseModel):
 
 @app.get('/',response_class=HTMLResponse)
 def home(request:Request):
-    return templates.TemplateResponse('index.html',{'request':request,'region':settings().aws_region,
+    # asset version = newest modification time of the css/js files, so browsers never keep a stale copy
+    version=str(int(max((BASE/'static'/'js'/'app.js').stat().st_mtime,(BASE/'static'/'css'/'styles.css').stat().st_mtime)))
+    return templates.TemplateResponse('index.html',{'request':request,'v':version,'region':settings().aws_region,
         'mode':'single-workspace demo'})
 
 
