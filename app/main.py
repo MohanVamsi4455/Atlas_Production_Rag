@@ -9,7 +9,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from app.observability import initialize, flush
 from app.demo_context import principal, Principal
-from app.aws import delete_object, presigned_put_url, presigned_url
+from fastapi.concurrency import run_in_threadpool
+from app.aws import delete_object, presigned_put_url, presigned_url, upload_bytes
 from app.vector import delete_document as delete_vectors
 from app.config import settings
 from app.db import connection, audit
@@ -86,7 +87,35 @@ def create_upload(body:Upload,p:Principal=Depends(principal)):
         audit(conn,p.subject,p.tenant,'upload_requested',{'document_id':doc_id})
     # Browser PUTs to S3; a separate completion request triggers synchronous ingestion.
     url=presigned_put_url(key)
-    return {'document_id':doc_id,'upload_url':url,'headers':{'Content-Type':'application/octet-stream'}}
+    return {'document_id':doc_id,'upload_url':url,'headers':{'Content-Type':'application/octet-stream'},
+            'upload_path':f'/api/documents/{doc_id}/content'}
+
+
+
+@app.put('/api/documents/{document_id}/content')
+async def upload_content(document_id:uuid.UUID,request:Request,p:Principal=Depends(principal)):
+    """Receive the file body and store it in S3. The browser talks only to Atlas, so the S3 bucket needs no CORS rule."""
+    limit=settings().max_upload_bytes
+    declared=request.headers.get('content-length','')
+    if declared.isdigit() and int(declared)>limit: raise HTTPException(413,'File too large (maximum 10 MB).')
+    with connection() as conn:
+        row=conn.execute("SELECT s3_key,status FROM documents WHERE id=%s AND tenant_id=%s AND owner_sub=%s",
+                         (document_id,p.tenant,p.subject)).fetchone()
+    if not row: raise HTTPException(404,'Document not found')
+    if row['status']!='pending': raise HTTPException(409,'This document was already uploaded')
+    data=bytearray()
+    async for chunk in request.stream():
+        data+=chunk
+        if len(data)>limit: raise HTTPException(413,'File too large (maximum 10 MB).')
+    if not data: raise HTTPException(400,'The file is empty')
+    try:
+        await run_in_threadpool(upload_bytes,row['s3_key'],bytes(data))
+    except Exception as exc:
+        log.exception('Storing upload %s in S3 failed',document_id)
+        raise HTTPException(502,'Could not store the file in S3. Check the S3 bucket name and AWS permissions.') from exc
+    with connection() as conn:
+        audit(conn,p.subject,p.tenant,'document_uploaded',{'document_id':str(document_id),'bytes':len(data)})
+    return {'uploaded':True,'bytes':len(data)}
 
 
 

@@ -492,8 +492,9 @@ $('uploadForm').onsubmit = async e => {
   const btn = $('uploadBtn'); btn.disabled = true; btn.textContent = 'Uploading…';
   try {
     const r = await api('/api/documents/uploads', { method: 'POST', body: JSON.stringify({ filename: f.name }) });
-    const up = await fetch(r.upload_url, { method: 'PUT', headers: r.headers, body: f });
-    if (!up.ok) throw Error('S3 upload failed');
+    // The file goes to Atlas (same address as this page), which stores it in S3: no S3 CORS setup is needed.
+    const up = await fetch(r.upload_path, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
+    if (!up.ok) { const d = await up.json().catch(() => ({})); throw Error(d.detail || 'Upload failed (' + up.status + ')'); }
     btn.textContent = 'Indexing…'; toast('Uploaded. Processing document now…');
     loadDocs();
     await api('/api/documents/complete', { method: 'POST', body: JSON.stringify({ document_id: r.document_id }) });
