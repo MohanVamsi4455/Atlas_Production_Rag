@@ -43,10 +43,10 @@ jobs:
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python (same version as the Dockerfile)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip                       # re-use downloaded libraries between runs
@@ -95,12 +95,10 @@ jobs:
     if: github.event_name != 'pull_request'      # never publish from a pull request
     runs-on: ubuntu-latest
     environment: production                      # lets this job read the secrets/variables saved in the 'production' environment
-    outputs:
-      image: ${{ steps.push.outputs.image }}     # full image address, handed to the deploy job
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check the AWS settings exist
         env:
@@ -120,7 +118,7 @@ jobs:
           exit $missing
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -140,7 +138,6 @@ jobs:
                  --image-scanning-configuration scanOnPush=true >/dev/null
 
       - name: Build and push the Docker image
-        id: push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME || secrets.ECR_REPOSITORY_NAME }}
@@ -156,7 +153,6 @@ jobs:
           docker push "$IMAGE"
           docker push "$LATEST"
 
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "Pushed $IMAGE"
 
       - name: Explain whether the deploy job will run
@@ -187,7 +183,7 @@ jobs:
 
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -196,9 +192,19 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Pull the new image
+      - name: Work out the image address
+        # Not passed from the build job: it contains the AWS account id, which GitHub masks as a secret.
         env:
-          IMAGE: ${{ needs.build-push.outputs.image }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME || secrets.ECR_REPOSITORY_NAME }}
+          IMAGE_TAG: ${{ github.sha }}               # the same commit the build job pushed
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "IMAGE=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+          echo "Image address worked out for commit ${IMAGE_TAG}"
+
+      - name: Pull the new image
         run: docker pull "$IMAGE"
 
       - name: Check the required settings exist
@@ -224,7 +230,7 @@ jobs:
 
       - name: Replace the running container
         env:
-          IMAGE: ${{ needs.build-push.outputs.image }}
+          # (IMAGE comes from the 'Work out the image address' step)
           # --- secrets ---
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
