@@ -19,6 +19,11 @@ on:
   pull_request:            # on pull requests only the checks run (nothing is pushed or deployed)
     branches: [main]
   workflow_dispatch:       # lets you start it by hand from the Actions tab
+    inputs:
+      deploy:
+        description: "Also deploy to the EC2 server (needs the self-hosted runner)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -154,6 +159,20 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "Pushed $IMAGE"
 
+      - name: Explain whether the deploy job will run
+        env:
+          DEPLOY_VAR: ${{ vars.DEPLOY_TO_EC2 }}
+          DEPLOY_INPUT: ${{ inputs.deploy }}
+        run: |
+          if [ "$DEPLOY_VAR" = "true" ] || [ "$DEPLOY_INPUT" = "true" ]; then
+            msg="Deploy to EC2 is ENABLED. It needs an online self-hosted runner with the label atlas-ec2."
+          else
+            msg="Deploy to EC2 is SKIPPED: the repository variable DEPLOY_TO_EC2 is '${DEPLOY_VAR:-empty}' (it must be exactly true). It must be a REPOSITORY variable, not an environment variable or a secret. Or start the workflow with Run workflow and tick 'deploy'."
+          fi
+          echo "### Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          echo "$msg"
+
   # ===========================================================================
   # 3. CONTINUOUS DEPLOYMENT (optional): run the new image on an EC2 server
   #    Turned OFF by default. Enable it by adding the repository VARIABLE  DEPLOY_TO_EC2 = true
@@ -162,7 +181,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     needs: build-push
-    if: ${{ vars.DEPLOY_TO_EC2 == 'true' }}
+    if: ${{ vars.DEPLOY_TO_EC2 == 'true' || inputs.deploy == true }}
     runs-on: [self-hosted, linux, x64, atlas-ec2]   # the runner you installed on the EC2 server
     environment: production
 
