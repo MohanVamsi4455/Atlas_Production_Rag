@@ -89,6 +89,7 @@ jobs:
     needs: integration
     if: github.event_name != 'pull_request'      # never publish from a pull request
     runs-on: ubuntu-latest
+    environment: production                      # lets this job read the secrets/variables saved in the 'production' environment
     outputs:
       image: ${{ steps.push.outputs.image }}     # full image address, handed to the deploy job
 
@@ -96,12 +97,29 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v4
 
+      - name: Check the AWS settings exist
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          ECR_REPOSITORY_NAME: ${{ vars.ECR_REPOSITORY_NAME || secrets.ECR_REPOSITORY_NAME }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION ECR_REPOSITORY_NAME; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::'$name' is empty. Add it in GitHub: Settings > Secrets and variables > Actions, as a repository secret/variable or inside the 'production' environment."
+              missing=1
+            fi
+          done
+          exit $missing
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -109,7 +127,7 @@ jobs:
 
       - name: Create the ECR repository if it does not exist yet
         env:
-          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME || secrets.ECR_REPOSITORY_NAME }}
         run: |
           set -euo pipefail
           aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1 \
@@ -120,7 +138,7 @@ jobs:
         id: push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME || secrets.ECR_REPOSITORY_NAME }}
           IMAGE_TAG: ${{ github.sha }}           # every image is tagged with its commit, so you can roll back
         run: |
           set -euo pipefail
@@ -154,7 +172,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -170,10 +188,10 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          GEMINI_CHAT_MODELS: ${{ vars.GEMINI_CHAT_MODELS }}
-          GROQ_CHAT_MODELS: ${{ vars.GROQ_CHAT_MODELS }}
-          PINECONE_INDEX_NAME: ${{ vars.PINECONE_INDEX_NAME }}
+          S3_BUCKET: ${{ vars.S3_BUCKET || secrets.S3_BUCKET }}
+          GEMINI_CHAT_MODELS: ${{ vars.GEMINI_CHAT_MODELS || secrets.GEMINI_CHAT_MODELS }}
+          GROQ_CHAT_MODELS: ${{ vars.GROQ_CHAT_MODELS || secrets.GROQ_CHAT_MODELS }}
+          PINECONE_INDEX_NAME: ${{ vars.PINECONE_INDEX_NAME || secrets.PINECONE_INDEX_NAME }}
         run: |
           set -euo pipefail
           for name in GEMINI_API_KEY GROQ_API_KEY PINECONE_API_KEY DATABASE_URL S3_BUCKET \
@@ -198,25 +216,25 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.APP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.APP_AWS_SECRET_ACCESS_KEY }}
           # --- variables ---
-          AWS_REGION: ${{ vars.AWS_REGION }}
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          CHAT_PROVIDER_ORDER: ${{ vars.CHAT_PROVIDER_ORDER }}
-          GEMINI_CHAT_MODELS: ${{ vars.GEMINI_CHAT_MODELS }}
-          GEMINI_EMBED_MODEL: ${{ vars.GEMINI_EMBED_MODEL }}
-          GROQ_CHAT_MODELS: ${{ vars.GROQ_CHAT_MODELS }}
-          EMBED_DIM: ${{ vars.EMBED_DIM }}
-          PINECONE_INDEX_NAME: ${{ vars.PINECONE_INDEX_NAME }}
-          PINECONE_CLOUD: ${{ vars.PINECONE_CLOUD }}
-          PINECONE_REGION: ${{ vars.PINECONE_REGION }}
-          PINECONE_READY_TIMEOUT: ${{ vars.PINECONE_READY_TIMEOUT }}
-          RIUS_SERVICE_NAME: ${{ vars.RIUS_SERVICE_NAME }}
-          RIUS_DISABLED: ${{ vars.RIUS_DISABLED }}
-          RIUS_CAPTURE_CONTENT: ${{ vars.RIUS_CAPTURE_CONTENT }}
-          MAX_UPLOAD_BYTES: ${{ vars.MAX_UPLOAD_BYTES }}
-          MIN_RELEVANCE: ${{ vars.MIN_RELEVANCE }}
-          HITL_ENABLED: ${{ vars.HITL_ENABLED }}
-          MEMORY_TURNS: ${{ vars.MEMORY_TURNS }}
-          PII_MODE: ${{ vars.PII_MODE }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          S3_BUCKET: ${{ vars.S3_BUCKET || secrets.S3_BUCKET }}
+          CHAT_PROVIDER_ORDER: ${{ vars.CHAT_PROVIDER_ORDER || secrets.CHAT_PROVIDER_ORDER }}
+          GEMINI_CHAT_MODELS: ${{ vars.GEMINI_CHAT_MODELS || secrets.GEMINI_CHAT_MODELS }}
+          GEMINI_EMBED_MODEL: ${{ vars.GEMINI_EMBED_MODEL || secrets.GEMINI_EMBED_MODEL }}
+          GROQ_CHAT_MODELS: ${{ vars.GROQ_CHAT_MODELS || secrets.GROQ_CHAT_MODELS }}
+          EMBED_DIM: ${{ vars.EMBED_DIM || secrets.EMBED_DIM }}
+          PINECONE_INDEX_NAME: ${{ vars.PINECONE_INDEX_NAME || secrets.PINECONE_INDEX_NAME }}
+          PINECONE_CLOUD: ${{ vars.PINECONE_CLOUD || secrets.PINECONE_CLOUD }}
+          PINECONE_REGION: ${{ vars.PINECONE_REGION || secrets.PINECONE_REGION }}
+          PINECONE_READY_TIMEOUT: ${{ vars.PINECONE_READY_TIMEOUT || secrets.PINECONE_READY_TIMEOUT }}
+          RIUS_SERVICE_NAME: ${{ vars.RIUS_SERVICE_NAME || secrets.RIUS_SERVICE_NAME }}
+          RIUS_DISABLED: ${{ vars.RIUS_DISABLED || secrets.RIUS_DISABLED }}
+          RIUS_CAPTURE_CONTENT: ${{ vars.RIUS_CAPTURE_CONTENT || secrets.RIUS_CAPTURE_CONTENT }}
+          MAX_UPLOAD_BYTES: ${{ vars.MAX_UPLOAD_BYTES || secrets.MAX_UPLOAD_BYTES }}
+          MIN_RELEVANCE: ${{ vars.MIN_RELEVANCE || secrets.MIN_RELEVANCE }}
+          HITL_ENABLED: ${{ vars.HITL_ENABLED || secrets.HITL_ENABLED }}
+          MEMORY_TURNS: ${{ vars.MEMORY_TURNS || secrets.MEMORY_TURNS }}
+          PII_MODE: ${{ vars.PII_MODE || secrets.PII_MODE }}
         run: |
           set -euo pipefail
 

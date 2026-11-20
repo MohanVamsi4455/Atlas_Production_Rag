@@ -48,6 +48,8 @@ Attach this policy (replace `REGION` and `ACCOUNT_ID`; `atlas-rag` is the reposi
 Repository → **Settings → Secrets and variables → Actions → Secrets → New repository secret**.
 Paste each value **without quotes**.
 
+> **Environment secrets also work.** If you store them under *Settings → Environments → production* instead, the build-push and deploy jobs can read them, because both declare `environment: production`. A secret may also be used for the settings listed as variables below; the workflow looks for a variable first, then a secret with the same name.
+
 | Secret | Needed for | Value |
 |---|---|---|
 | `AWS_ACCESS_KEY_ID` | build-push, deploy | Access key from Step 1 |
