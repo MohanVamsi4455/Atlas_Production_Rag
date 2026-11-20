@@ -75,7 +75,7 @@ Same page, **Variables** tab → **New repository variable**. These are not secr
 | `GEMINI_CHAT_MODELS` | Same as in your `.env` | deploy |
 | `GROQ_CHAT_MODELS` | Same as in your `.env` | deploy |
 | `PINECONE_INDEX_NAME` | Same as in your `.env` | deploy |
-| `DEPLOY_TO_EC2` | `true` to enable the deploy job | deploy |
+| `DEPLOY_TO_EC2` | `true` to enable the deploy job (a variable or a secret, in the repository or the `production` environment) | deploy |
 | Optional: `CHAT_PROVIDER_ORDER`, `GEMINI_EMBED_MODEL`, `EMBED_DIM`, `PINECONE_CLOUD`, `PINECONE_REGION`, `PINECONE_READY_TIMEOUT`, `RIUS_SERVICE_NAME`, `RIUS_DISABLED`, `RIUS_CAPTURE_CONTENT`, `MAX_UPLOAD_BYTES`, `MIN_RELEVANCE`, `HITL_ENABLED`, `MEMORY_TURNS`, `PII_MODE` | Only set the ones you want to change; anything left out uses the app's default | deploy |
 
 ---

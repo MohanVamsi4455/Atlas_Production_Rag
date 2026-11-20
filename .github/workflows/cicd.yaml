@@ -95,6 +95,8 @@ jobs:
     if: github.event_name != 'pull_request'      # never publish from a pull request
     runs-on: ubuntu-latest
     environment: production                      # lets this job read the secrets/variables saved in the 'production' environment
+    outputs:
+      deploy: ${{ steps.switch.outputs.deploy }}   # 'yes' or 'no': decides whether the deploy job runs
 
     steps:
       - name: Check out the code
@@ -155,15 +157,22 @@ jobs:
 
           echo "Pushed $IMAGE"
 
-      - name: Explain whether the deploy job will run
+      - name: Decide whether to deploy to EC2
+        id: switch
         env:
-          DEPLOY_VAR: ${{ vars.DEPLOY_TO_EC2 }}
+          # DEPLOY_TO_EC2 may be a repository variable, an environment variable or a secret; any of them works.
+          DEPLOY_VAR: ${{ vars.DEPLOY_TO_EC2 || secrets.DEPLOY_TO_EC2 }}
           DEPLOY_INPUT: ${{ inputs.deploy }}
         run: |
-          if [ "$DEPLOY_VAR" = "true" ] || [ "$DEPLOY_INPUT" = "true" ]; then
+          value=$(printf '%s' "${DEPLOY_VAR:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]"'"'"'')
+          # The output is "yes"/"no" on purpose: if it were "true" and your secret is also "true",
+          # GitHub would hide the output as a secret.
+          if [ "$value" = "true" ] || [ "${DEPLOY_INPUT:-}" = "true" ]; then
+            echo "deploy=yes" >> "$GITHUB_OUTPUT"
             msg="Deploy to EC2 is ENABLED. It needs an online self-hosted runner with the label atlas-ec2."
           else
-            msg="Deploy to EC2 is SKIPPED: the repository variable DEPLOY_TO_EC2 is '${DEPLOY_VAR:-empty}' (it must be exactly true). It must be a REPOSITORY variable, not an environment variable or a secret. Or start the workflow with Run workflow and tick 'deploy'."
+            echo "deploy=no" >> "$GITHUB_OUTPUT"
+            msg="Deploy to EC2 is SKIPPED: DEPLOY_TO_EC2 is not set to true (a variable, environment variable or secret all work). Or start the workflow with Run workflow and tick 'deploy'."
           fi
           echo "### Deployment" >> "$GITHUB_STEP_SUMMARY"
           echo "$msg" >> "$GITHUB_STEP_SUMMARY"
@@ -171,13 +180,14 @@ jobs:
 
   # ===========================================================================
   # 3. CONTINUOUS DEPLOYMENT (optional): run the new image on an EC2 server
-  #    Turned OFF by default. Enable it by adding the repository VARIABLE  DEPLOY_TO_EC2 = true
+  #    Turned OFF by default. Enable it by adding the setting  DEPLOY_TO_EC2 = true  (as a variable or a secret,
+#    at repository level or in the 'production' environment), or by ticking 'deploy' under Run workflow,
   #    after you have installed a self-hosted GitHub runner on the EC2 instance.
   # ===========================================================================
   deploy:
     name: Deploy to EC2
     needs: build-push
-    if: ${{ vars.DEPLOY_TO_EC2 == 'true' || inputs.deploy == true }}
+    if: ${{ needs.build-push.outputs.deploy == 'yes' }}
     runs-on: [self-hosted, linux, x64, atlas-ec2]   # the runner you installed on the EC2 server
     environment: production
 
