@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 10485760
     min_relevance: float = 0.25
     hitl_enabled: bool = True
+    pii_mode: str = 'redact'  # 'redact' = block IDs in questions, mask PII in evidence/answers; 'off' = disabled
     memory_turns: int = 6
 
     @property

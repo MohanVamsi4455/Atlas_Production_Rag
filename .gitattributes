@@ -1,0 +1,21 @@
+# Normalise line endings so the repository is identical on Windows, Mac and Linux.
+# Without this, files edited on Windows can be committed with CRLF line endings.
+* text=auto
+
+# These must always use LF, or they fail on Linux (CI runners, Docker, EC2).
+*.sh          text eol=lf
+Dockerfile    text eol=lf
+.dockerignore text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+*.py          text eol=lf
+*.sql         text eol=lf
+
+# Binary files: never convert or diff as text.
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff2 binary

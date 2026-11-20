@@ -34,3 +34,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS chat_messages_session_idx ON chat_messages(tenant_id,conversation_id,id DESC);
+-- Citations shown with each answer, kept so they still work after a page reload.
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sources jsonb;
+
+-- Approvals can now carry out the approved action (currently: delete one document).
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS action text;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS document_id uuid;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS executed boolean NOT NULL DEFAULT false;
+
+-- PII types found in a document at upload (NULL = not scanned yet). A document with PII cannot be shown or opened in the UI.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS pii jsonb;

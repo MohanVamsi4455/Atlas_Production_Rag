@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atlas | Enterprise Knowledge · Mohan Vamsi Chitrada</title>
+<script>
+  // Apply the saved (or system) theme before the page paints, so there is no flash.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('atlas_theme'); } catch (e) {}
+    if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/static/css/styles.css?v=ui-18">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M20 16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V22h16"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20a6.5 6.5 0 0 0-4-6"/></symbol>
+  </defs>
+</svg>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><svg class="ic"><use href="#i-book"/></svg></div>
+      <div class="brand-text"><strong>Atlas</strong><small>Enterprise AI</small></div>
+    </div>
+
+    <div class="side-label">Workspace</div>
+    <button class="nav active" id="chatTab"><svg class="ic"><use href="#i-chat"/></svg><span>Knowledge chat</span></button>
+    <button class="nav" id="docsTab"><svg class="ic"><use href="#i-file"/></svg><span>Documents</span></button>
+    <button class="nav" id="approvalTab"><svg class="ic"><use href="#i-check"/></svg><span>Approvals</span></button>
+    <button class="nav" id="adminTab"><svg class="ic"><use href="#i-chart"/></svg><span>Metrics</span></button>
+
+    <div class="threads-head">
+      <span class="side-label">Conversations</span>
+      <button type="button" id="newThread" class="icon-btn" title="Start a new conversation" aria-label="New conversation"><svg class="ic"><use href="#i-plus"/></svg></button>
+    </div>
+    <nav id="threads" class="threads" aria-label="Conversations"></nav>
+
+    <div class="sidebottom">
+      <div class="who"><div class="who-avatar">M</div><div><strong>Mohan Vamsi Chitrada</strong><small>Workspace owner · No login</small></div></div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div class="titles">
+        <span class="eyebrow">Your workspace / Knowledge</span>
+        <h1 id="heading">Ask your organization's knowledge</h1>
+      </div>
+      <div class="top-actions">
+        <div class="pill"><span class="dot"></span>Groq + Gemini powered</div>
+        <button type="button" id="themeBtn" class="icon-btn lg" title="Switch light / dark theme" aria-label="Switch theme"><svg class="ic"><use id="themeIcon" href="#i-moon"/></svg></button>
+      </div>
+    </header>
+
+    <section id="chatView" class="panel">
+      <div class="chat-top">
+        <span class="chat-title">Conversation</span>
+        <button type="button" id="newChat" class="btn ghost sm"><svg class="ic"><use href="#i-plus"/></svg>New conversation</button>
+      </div>
+
+      <div id="scroller">
+        <div class="hero" id="hero">
+          <div class="hero-mark"><svg class="ic"><use href="#i-book"/></svg></div>
+          <h2>What can I help you find?</h2>
+          <p>Ask about your approved documents. Every answer comes with its evidence, and each citation opens the original page.</p>
+          <div class="suggestions">
+            <button class="suggest" data-q="What is our leave policy?"><span class="s-ic c1"><svg class="ic"><use href="#i-users"/></svg></span><strong>Leave policy</strong><small>Entitlements and how to request time off</small></button>
+            <button class="suggest" data-q="Summarize the onboarding process"><span class="s-ic c2"><svg class="ic"><use href="#i-file"/></svg></span><strong>Onboarding</strong><small>Steps for new joiners, summarized</small></button>
+            <button class="suggest" data-q="What are the IT security rules?"><span class="s-ic c3"><svg class="ic"><use href="#i-shield"/></svg></span><strong>IT security</strong><small>Rules and requirements to follow</small></button>
+          </div>
+        </div>
+        <div id="messages" aria-live="polite"></div>
+      </div>
+
+      <form id="chatForm" class="composer">
+        <textarea id="question" rows="1" maxlength="2000" placeholder="Ask a question about company knowledge…" required></textarea>
+        <button type="submit" id="sendBtn" class="send" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button>
+      </form>
+      <div class="hint">Enter to send · Shift+Enter for a new line · Answers may be inaccurate, so verify the source passages.</div>
+    </section>
+
+    <section id="docsView" class="panel hidden">
+      <div class="panel-head"><div><h2>Knowledge library</h2><p>Upload an approved PDF, DOCX, TXT or Markdown file (max 10 MB). Use non-sensitive demo documents only.</p></div></div>
+      <form id="uploadForm" class="dropzone">
+        <input id="file" type="file" accept=".pdf,.docx,.txt,.md" required>
+        <label for="file" class="drop-label">
+          <span class="drop-ic"><svg class="ic"><use href="#i-upload"/></svg></span>
+          <span class="drop-text"><strong id="dropTitle">Drop a file here, or click to browse</strong><small id="dropSub">PDF, DOCX, TXT or MD · up to 10 MB</small></span>
+        </label>
+        <button id="uploadBtn" class="btn primary" type="submit">Upload document</button>
+      </form>
+      <div id="docs"></div>
+    </section>
+
+    <section id="approvalView" class="panel hidden">
+      <div class="section-header"><div><h2>Human-in-the-loop approvals</h2><p>Review pending requests. Approving a delete request permanently deletes the named document; other requests record a decision only.</p></div><button type="button" id="refreshApprovals" class="btn ghost sm">Refresh</button></div>
+      <div id="approvalSummary" role="status"></div>
+      <div id="approvalList" aria-live="polite"></div>
+    </section>
+
+    <section id="adminView" class="panel hidden">
+      <h2>Workspace metrics</h2><div id="metrics" class="tiles">Loading metrics...</div>
+      <h2>Guardrail events</h2><div id="guardrailMetrics">Loading guardrail metrics...</div>
+    </section>
+
+    <aside id="viewer" class="viewer" aria-hidden="true" aria-label="Document viewer">
+      <div class="viewer-head">
+        <div class="viewer-title"><strong id="viewerTitle">Document</strong><span id="viewerPage"></span></div>
+        <a id="viewerNewTab" class="ghost-link" target="_blank" rel="noopener">Open in new tab ↗</a>
+        <button type="button" id="viewerClose" class="icon-btn" aria-label="Close viewer"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="viewer-body"><div class="viewer-loading">Loading document…</div><iframe id="viewerFrame" title="Document"></iframe></div>
+      <div class="viewer-resize" id="viewerResize" title="Drag to resize"></div>
+    </aside>
+
+    <footer class="credit">Built by <strong>Mohan Vamsi Chitrada</strong> · Atlas Enterprise AI</footer>
+
+    <div id="toast" role="status"></div>
+  </main>
+</div>
+<script src="/static/js/app.js?v=ui-11"></script>
+</body>
+</html>
