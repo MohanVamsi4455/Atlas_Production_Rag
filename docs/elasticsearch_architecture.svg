@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 890" width="1200" height="890" font-family="Inter, Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6d28d9"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/></marker>
+  </defs>
+  <rect width="1200" height="890" fill="#ffffff"/>
+
+  <text x="40" y="38" font-size="24" font-weight="800" fill="#0f172a">Architecture: Gemini + Pinecone + Elasticsearch (BM25)</text>
+  <text x="40" y="62" font-size="14" fill="#475569">Pinecone stores meaning (dense vectors). Elasticsearch stores words (an inverted index). There are no sparse vectors.</text>
+
+  <!-- ================= 1. UPLOAD AND STORAGE ================= -->
+  <text x="40" y="100" font-size="15" font-weight="700" fill="#6d28d9">1  UPLOAD AND STORAGE  (once per document)</text>
+
+  <rect x="40" y="125" width="230" height="190" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="155" y="152" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a">PDF / DOCX / TXT</text>
+  <text x="155" y="171" text-anchor="middle" font-size="12" fill="#475569">uploaded in the browser</text>
+  <line x1="60" y1="185" x2="250" y2="185" stroke="#cbd5e1"/>
+  <text x="155" y="209" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a">ATLAS  (on EC2)</text>
+  <text x="155" y="233" text-anchor="middle" font-size="12.5" fill="#1e293b">extracts the text</text>
+  <text x="155" y="253" text-anchor="middle" font-size="12.5" fill="#1e293b">splits it into chunks</text>
+  <text x="155" y="273" text-anchor="middle" font-size="12.5" fill="#1e293b">sends every chunk to</text>
+  <text x="155" y="293" text-anchor="middle" font-size="12.5" fill="#1e293b">the stores on the right</text>
+
+  <!-- Gemini -->
+  <rect x="330" y="212" width="220" height="62" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="440" y="238" text-anchor="middle" font-size="14" font-weight="800" fill="#1e40af">GEMINI</text>
+  <text x="440" y="258" text-anchor="middle" font-size="12.5" fill="#1e293b">chunk text -> 1024 numbers</text>
+
+  <!-- stores -->
+  <rect x="640" y="108" width="530" height="72" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="2"/>
+  <text x="660" y="134" font-size="14" font-weight="800" fill="#0f172a">AMAZON S3</text>
+  <text x="660" y="156" font-size="12.5" fill="#1e293b">the original file, as uploaded (PDF / DOCX / TXT). Nothing else.</text>
+
+  <rect x="640" y="195" width="530" height="112" rx="12" fill="#ede9fe" stroke="#6d28d9" stroke-width="2.5"/>
+  <text x="660" y="220" font-size="14" font-weight="800" fill="#4c1d95">PINECONE  -  finds chunks by MEANING</text>
+  <g font-family="Consolas, 'Courier New', monospace" font-size="12.5" fill="#1e293b">
+    <text x="660" y="243">id:        doc7:1:3</text>
+    <text x="660" y="262">vector:    [0.012, -0.034, ... 1024 numbers]   <tspan fill="#64748b">from Gemini</tspan></text>
+    <text x="660" y="281">metadata:  text, doc_id, title, page, allowed_groups, owner</text>
+  </g>
+  <text x="660" y="299" font-size="12" font-style="italic" fill="#6d28d9">no sparse vectors, no keyword data</text>
+
+  <rect x="640" y="322" width="530" height="136" rx="12" fill="#ccfbf1" stroke="#0f766e" stroke-width="2.5"/>
+  <text x="660" y="347" font-size="14" font-weight="800" fill="#115e59">ELASTICSEARCH  -  finds chunks by WORDS (BM25)</text>
+  <g font-family="Consolas, 'Courier New', monospace" font-size="12.5" fill="#1e293b">
+    <text x="660" y="370">id:        doc7:1:3          <tspan fill="#64748b">same id as in Pinecone</tspan></text>
+    <text x="660" y="389">fields:    text, title, page, tenant_id, allowed_groups</text>
+    <text x="660" y="408">index:     word -> the chunks that contain it</text>
+    <text x="660" y="427">stats:     word counts and lengths, kept by Elasticsearch</text>
+  </g>
+  <text x="660" y="448" font-size="12" font-style="italic" fill="#0f766e">no vectors. It builds the word index itself from the text.</text>
+
+  <rect x="640" y="473" width="530" height="62" rx="12" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+  <text x="660" y="498" font-size="14" font-weight="800" fill="#075985">POSTGRES  (AWS RDS)</text>
+  <text x="660" y="519" font-size="12.5" fill="#1e293b">documents + status + PII flags, approvals, audit log, chat history</text>
+
+  <!-- upload arrows -->
+  <path d="M270,160 L638,144" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+  <text x="400" y="140" font-size="12" fill="#475569">original file</text>
+  <path d="M270,243 H328" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#ab)"/>
+  <path d="M550,243 L638,251" fill="none" stroke="#6d28d9" stroke-width="2.5" marker-end="url(#ap)"/>
+  <text x="553" y="272" font-size="12" fill="#6d28d9">dense vector</text>
+  <path d="M270,290 L638,390" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#at)"/>
+  <text x="440" y="396" font-size="12" fill="#0f766e">chunk text + permissions</text>
+  <path d="M270,308 L638,505" fill="none" stroke="#0369a1" stroke-width="2" marker-end="url(#a)"/>
+  <text x="330" y="470" font-size="12" fill="#0369a1">document row + status</text>
+
+  <!-- ================= 2. QUESTION ================= -->
+  <text x="40" y="578" font-size="15" font-weight="700" fill="#6d28d9">2  QUESTION  (every time)</text>
+
+  <rect x="40" y="620" width="190" height="96" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="135" y="648" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a">User question</text>
+  <text x="135" y="671" text-anchor="middle" font-size="12" fill="#475569">guardrails + PII mask</text>
+  <text x="135" y="690" text-anchor="middle" font-size="12" fill="#475569">run first</text>
+
+  <rect x="275" y="598" width="170" height="64" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="360" y="624" text-anchor="middle" font-size="14" font-weight="800" fill="#1e40af">GEMINI</text>
+  <text x="360" y="644" text-anchor="middle" font-size="12" fill="#1e293b">question -> numbers</text>
+
+  <rect x="485" y="598" width="215" height="64" rx="12" fill="#ede9fe" stroke="#6d28d9" stroke-width="2"/>
+  <text x="592" y="624" text-anchor="middle" font-size="14" font-weight="800" fill="#4c1d95">PINECONE search</text>
+  <text x="592" y="644" text-anchor="middle" font-size="12" fill="#1e293b">top 10 by meaning</text>
+
+  <rect x="485" y="700" width="215" height="64" rx="12" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+  <text x="592" y="726" text-anchor="middle" font-size="14" font-weight="800" fill="#115e59">ELASTICSEARCH search</text>
+  <text x="592" y="746" text-anchor="middle" font-size="12" fill="#1e293b">top 10 by words (BM25)</text>
+
+  <rect x="745" y="640" width="200" height="98" rx="12" fill="#fef9c3" stroke="#a16207" stroke-width="2"/>
+  <text x="845" y="668" text-anchor="middle" font-size="14" font-weight="800" fill="#854d0e">ATLAS merges</text>
+  <text x="845" y="689" text-anchor="middle" font-size="12" fill="#1e293b">by rank (reciprocal rank</text>
+  <text x="845" y="706" text-anchor="middle" font-size="12" fill="#1e293b">fusion) -> best 5 chunks</text>
+  <text x="845" y="725" text-anchor="middle" font-size="11.5" fill="#64748b">found by both = on top</text>
+
+  <rect x="985" y="620" width="185" height="76" rx="12" fill="#fce7f3" stroke="#be185d" stroke-width="2"/>
+  <text x="1077" y="646" text-anchor="middle" font-size="14" font-weight="800" fill="#9d174d">mask PII, then LLM</text>
+  <text x="1077" y="667" text-anchor="middle" font-size="12" fill="#1e293b">Groq (Gemini as backup)</text>
+  <text x="1077" y="684" text-anchor="middle" font-size="12" fill="#1e293b">writes the answer</text>
+
+  <rect x="985" y="722" width="185" height="56" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="1077" y="746" text-anchor="middle" font-size="13" font-weight="800" fill="#0f172a">answer + cited sources</text>
+  <text x="1077" y="764" text-anchor="middle" font-size="11.5" fill="#475569">chat saved in Postgres</text>
+
+  <!-- question arrows -->
+  <path d="M230,650 H252 V630 H273" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#ab)"/>
+  <path d="M230,688 H252 V732 H483" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#at)"/>
+  <path d="M445,630 H483" fill="none" stroke="#6d28d9" stroke-width="2.5" marker-end="url(#ap)"/>
+  <path d="M700,630 H722 V676 H743" fill="none" stroke="#6d28d9" stroke-width="2.5" marker-end="url(#ap)"/>
+  <path d="M700,732 H722 V704 H743" fill="none" stroke="#0f766e" stroke-width="2.5" marker-end="url(#at)"/>
+  <path d="M945,689 L983,662" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M1077,696 V720" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- note -->
+  <rect x="40" y="800" width="1130" height="68" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="58" y="826" font-size="13" font-weight="700" fill="#0f172a">No sparse vectors anywhere in this design.</text>
+  <text x="58" y="846" font-size="12.5" fill="#334155">Elasticsearch makes its own word index and BM25 statistics from the chunk text and keeps them current when chunks are added or deleted.</text>
+  <text x="58" y="862" font-size="12.5" fill="#334155">Gemini only creates the dense vectors and stores nothing. The same chunk id ties the Pinecone copy and the Elasticsearch copy together.</text>
+</svg>

@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-from app import aws, llm, vector  # noqa: E402
+from app import aws, keyword, llm, vector  # noqa: E402
 from app.config import settings  # noqa: E402
 
 
@@ -75,6 +75,7 @@ if __name__ == '__main__':
             llm.chat([{'role': 'user', 'content': 'Say hello in one sentence.'}]))),
         step('Each chat model', chat_all),
         step('Pinecone', pinecone_roundtrip),
+        *([step('Elasticsearch', keyword.check_connection)] if keyword.enabled() else []),
         step('Embeddings', lambda: f'{len(llm.embed(["annual leave policy"])[0])} dims'),
     ]
     sys.exit(0 if all(results) else 1)

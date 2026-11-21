@@ -24,3 +24,4 @@ test/
 create_structure.py
 Dockerfile
 .dockerignore
+docker-compose*.yml

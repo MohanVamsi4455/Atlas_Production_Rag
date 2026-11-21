@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -35,20 +36,7 @@ import warnings  # noqa: E402
 warnings.filterwarnings('ignore')
 from app import llm, vector  # noqa: E402
 
-DEFAULT = [
-    {'q': 'How many days of annual leave do I get?', 'expect': '24 days'},
-    {'q': 'What happens to unused leave at the end of the year?', 'expect': 'carried forward'},
-    {'q': 'How long is parental leave for the second caregiver?', 'expect': '4 weeks'},
-    {'q': 'time off after having a baby', 'expect': 'parental leave'},
-    {'q': 'how long to report phishing', 'expect': '1 hour'},
-    {'q': 'minimum password length', 'expect': '12 characters'},
-    {'q': 'VPN on public wifi', 'expect': 'VPN'},
-    {'q': 'USB', 'expect': 'USB'},
-    {'q': '30-60-90', 'expect': '30-60-90'},
-    {'q': 'expense claims deadline', 'expect': '30 days'},
-    {'q': 'Does Mohan know LangGraph?', 'expect': 'LangGraph'},
-    {'q': 'FAISS', 'expect': 'FAISS'},
-]
+from sample_questions import QUESTIONS as DEFAULT  # noqa: E402
 questions = json.loads(Path(args.questions).read_text(encoding='utf-8')) if args.questions else DEFAULT
 alphas = [float(a) for a in args.alphas.split(',')]
 groups = [g for g in args.groups.split(',') if g]

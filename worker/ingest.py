@@ -13,6 +13,7 @@ from pypdf import PdfReader
 from app.aws import get_object_bytes
 from app.config import settings
 from app.db import audit, connection
+from app import keyword
 from app.llm import embed, sparse_embed
 from app.observability import initialize, trace
 from app.pii import merge, redact
@@ -79,7 +80,7 @@ def process_s3_key(key):
         for i in range(0, len(texts), EMBED_BATCH):
             vectors.extend(embed(texts[i:i + EMBED_BATCH]))
         sparse = None
-        if is_hybrid():
+        if is_hybrid() and not keyword.enabled():   # Elasticsearch handles keywords when it is configured
             try:
                 sparse = sparse_embed(texts, 'passage')
             except Exception:  # keep the document searchable by meaning even if the keyword model fails
@@ -87,10 +88,20 @@ def process_s3_key(key):
         upsert_chunks(doc['tenant_id'], str(doc['id']), doc['title'], list(doc['allowed_groups']),
                       texts, vectors, version=doc['current_version'], owner_sub=doc['owner_sub'],
                       pages=[page for page, _ in parts], sparse=sparse)
+        keyword_indexed = None
+        if keyword.enabled():
+            try:
+                keyword.upsert_chunks(doc['tenant_id'], str(doc['id']), doc['title'], list(doc['allowed_groups']),
+                                      texts, version=doc['current_version'], owner_sub=doc['owner_sub'],
+                                      pages=[page for page, _ in parts])
+                keyword_indexed = True
+            except Exception:  # still searchable by meaning; scripts/sync_to_elasticsearch.py repairs the keyword side
+                keyword_indexed = False
+                log.warning('Elasticsearch indexing failed for %s; keyword search will miss it until synced', doc['id'], exc_info=True)
         with connection() as conn:
             conn.execute("UPDATE documents SET status='ready', pii=%s WHERE id=%s", (Jsonb(pii), doc['id']))
             audit(conn, doc['owner_sub'], doc['tenant_id'], 'ingest_ready',
-                  {'document_id': str(doc['id']), 'chunks': len(parts), 'pii_found': pii})
+                  {'document_id': str(doc['id']), 'chunks': len(parts), 'pii_found': pii, 'keyword_indexed': keyword_indexed})
         log.info('Ingested document %s chunks=%d', doc['id'], len(parts))
     except Exception:
         log.exception('Ingestion failed for key %s', key)

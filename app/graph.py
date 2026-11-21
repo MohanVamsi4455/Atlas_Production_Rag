@@ -16,6 +16,9 @@ from langgraph.graph import END, START, StateGraph
 from app.guardrails import check_input, check_output, is_refusal
 import logging
 
+from app import keyword
+from app.config import settings
+from app.fusion import fuse_rrf
 from app.llm import answer, embed, sparse_embed
 from app.observability import trace
 from app.pii import merge, redact
@@ -46,13 +49,35 @@ def retrieve(s):
     # Include the most recent user question for short follow-ups such as 'summarize that'.
     prior_questions = [m['content'] for m in s.get('history', []) if m['role'] == 'user']
     query = (prior_questions[-1] + '\nFollow-up: ' + s['question']) if prior_questions else s['question']
+    dense_q = embed([query])[0]
+    if keyword.enabled():
+        # Meaning from Pinecone + keywords (BM25) from Elasticsearch, merged by rank. A failure on either side
+        # degrades to the other instead of failing the question.
+        dense_hits = search(p.tenant, dense_q, list(p.groups), top_k=10, owner_sub=p.subject)
+        try:
+            kw_hits = keyword.search(p.tenant, query, list(p.groups), owner_sub=p.subject, top_k=10)
+        except Exception:
+            log.warning('Elasticsearch keyword search failed; using meaning-only search', exc_info=True)
+            kw_hits = []
+        cfg = settings()
+        hits = fuse_rrf(dense_hits, kw_hits, top_k=5, dense_weight=cfg.rrf_dense_weight, keyword_weight=cfg.rrf_keyword_weight)
+    else:
+        hits = _pinecone_search(p, query, dense_q)
+    return _evidence(hits)
+
+
+def _pinecone_search(p, query, dense_q):
+    """Meaning-only search, or Pinecone's own sparse vectors when the index is hybrid."""
     sparse_q = None
     if is_hybrid():
         try:
             sparse_q = sparse_embed([query], 'query')[0]
         except Exception:  # keyword model unavailable: answer with meaning-only search instead of failing
             log.warning('Sparse query embedding failed; using dense-only search', exc_info=True)
-    hits = search(p.tenant, embed([query])[0], list(p.groups), top_k=5, owner_sub=p.subject, sparse_query=sparse_q)
+    return search(p.tenant, dense_q, list(p.groups), top_k=5, owner_sub=p.subject, sparse_query=sparse_q)
+
+
+def _evidence(hits):
     pii = {}
     for h in hits:  # mask PII before the text reaches the LLM or the screen
         h['text'], found = redact(h['text'] or '')

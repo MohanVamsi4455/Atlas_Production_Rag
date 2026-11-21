@@ -13,6 +13,7 @@ from app.observability import initialize, flush
 from app.demo_context import principal, Principal
 from fastapi.concurrency import run_in_threadpool
 from app.aws import delete_object, presigned_put_url, presigned_url, upload_bytes
+from app import keyword
 from app.vector import delete_document as delete_vectors
 from app.config import settings
 from app.db import connection, audit
@@ -347,6 +348,9 @@ def _delete_document(conn,p:Principal,document_id)->bool:
     if not doc: return False
     try:
         removed=delete_vectors(p.tenant,str(document_id))
+        if keyword.enabled():
+            try: keyword.delete_document(p.tenant,str(document_id))
+            except Exception: log.warning('Elasticsearch delete failed for %s; run scripts/sync_to_elasticsearch.py',document_id,exc_info=True)
         delete_object(doc['s3_key'])
     except Exception as exc:
         log.exception('Deleting document %s failed',document_id)

@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     # Balance between meaning (dense) and keywords (sparse): 1.0 = only meaning, 0.0 = only keywords.
     hybrid_alpha: float = 0.6
 
+    # Elasticsearch (BM25 keyword search). Leave ELASTIC_URL / ELASTIC_API_KEY empty to not use it.
+    elastic_url: str = ''            # e.g. https://my-project.es.ap-south-1.aws.elastic.cloud
+    elastic_api_key: str = ''        # the 'Encoded' API key created in Elastic Cloud
+    elastic_index: str = 'atlas-chunks'
+    elastic_min_score: float = 1.0   # a keyword hit must reach this BM25 score ...
+    elastic_min_ratio: float = 0.3   # ... and at least this fraction of the best hit's score
+    # auto = Elasticsearch if configured, else Pinecone's sparse vectors on a hybrid index, else meaning-only.
+    # elasticsearch / pinecone / none force one choice.
+    keyword_backend: str = 'auto'
+    # How much each list counts when Pinecone (meaning) and Elasticsearch (keywords) are merged. 1.0 each = equal say.
+    # On the sample documents a keyword weight of 1.25 to 1.5 gave the best results; tune with scripts/compare_keyword.py.
+    rrf_dense_weight: float = 1.0
+    rrf_keyword_weight: float = 1.3
+
     # PostgreSQL (Render External Database URL)
     database_url: str = ''
 

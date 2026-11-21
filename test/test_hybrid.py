@@ -220,6 +220,7 @@ def test_wrong_index_is_rejected_with_a_clear_message():
 def test_retrieval_still_answers_when_the_keyword_model_is_down():
     from app import graph
     seen = {}
+    graph.keyword = types.SimpleNamespace(enabled=lambda: False)     # these tests are about Pinecone's own sparse vectors
     graph.is_hybrid = lambda: True
     graph.embed = lambda texts: [[1.0]]
     def boom(*a, **k): raise RuntimeError('sparse model down')
@@ -233,6 +234,7 @@ def test_retrieval_still_answers_when_the_keyword_model_is_down():
 def test_retrieval_sends_the_sparse_query_when_available():
     from app import graph
     seen = {}
+    graph.keyword = types.SimpleNamespace(enabled=lambda: False)     # these tests are about Pinecone's own sparse vectors
     graph.is_hybrid = lambda: True
     graph.embed = lambda texts: [[1.0]]
     graph.sparse_embed = lambda texts, kind: [{'indices': [1], 'values': [1.0]}] if kind == 'query' else None

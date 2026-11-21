@@ -12,6 +12,10 @@ Every chunk is stored once, with **two vectors in the same record**:
 One query sends both. Pinecone adds the two scores and returns one ranked list. **There is no statistics file to store**:
 the hosted model does the word weighting for chunks and for questions.
 
+> **Want true BM25 from Elasticsearch instead of Pinecone's sparse model?** See
+> [ELASTICSEARCH_SETUP.md](ELASTICSEARCH_SETUP.md). Pinecone then keeps only the meaning side, and the two result
+> lists are merged by rank. When Elasticsearch is configured it takes over the keyword side automatically.
+
 ## How the app decides what to do
 The index type decides, with no code change:
 

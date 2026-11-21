@@ -86,8 +86,10 @@ jobs:
           print("smoke test passed")
           PY
 
-      - name: Hybrid search tests (offline, no keys needed)
-        run: python test/test_hybrid.py
+      - name: Hybrid and keyword search tests (offline, no keys needed)
+        run: |
+          python test/test_hybrid.py
+          python test/test_keyword.py
 
   # ===========================================================================
   # 2. CONTINUOUS DELIVERY: build the image and push it to Amazon ECR
@@ -241,9 +243,67 @@ jobs:
           done
           echo "All required settings are present"
 
+      - name: Start Elasticsearch next to the app (skipped safely if the server is too small)
+        id: es
+        continue-on-error: true            # the app must deploy even if this step has a problem
+        env:
+          CLOUD_URL: ${{ vars.ELASTIC_URL || secrets.ELASTIC_URL }}
+          SELF_HOST: ${{ vars.SELF_HOST_ELASTICSEARCH || secrets.SELF_HOST_ELASTICSEARCH }}
+        run: |
+          set -uo pipefail
+          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+
+          if [ -n "${CLOUD_URL:-}" ]; then
+            echo "ready=no" >> "$GITHUB_OUTPUT"; say "Elasticsearch: using the Elastic Cloud URL you configured, so nothing is started on this server."; exit 0
+          fi
+          if [ "${SELF_HOST:-}" = "false" ]; then
+            echo "ready=no" >> "$GITHUB_OUTPUT"; say "Elasticsearch: SELF_HOST_ELASTICSEARCH=false, so it is not started."; exit 0
+          fi
+
+          NAME=atlas-elasticsearch; NET=atlas-net
+          docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET" >/dev/null
+
+          # Already running (it keeps running between deploys): nothing to do.
+          if docker ps --format '{{.Names}}' | grep -qx "$NAME"; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"; say "Elasticsearch: already running."; exit 0
+          fi
+
+          # Pre-flight: Elasticsearch needs about 1 GB of memory and 3 GB of disk. If the server is too small,
+          # skip it and deploy the app anyway (questions are then answered from Pinecone alone).
+          mem_mb=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+          disk_mb=$(df --output=avail -m / | tail -1 | tr -d ' ')
+          if [ "$mem_mb" -lt 1300 ] || [ "$disk_mb" -lt 3000 ]; then
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::Elasticsearch skipped: this server has ${mem_mb} MB free memory and ${disk_mb} MB free disk (needs 1300 MB and 3000 MB)."
+            say "Elasticsearch: SKIPPED. Free memory ${mem_mb} MB (needs 1300), free disk ${disk_mb} MB (needs 3000). Use a larger EC2 instance (4 GB memory) and a bigger disk, then deploy again. The app was deployed without keyword search."
+            exit 0
+          fi
+
+          if docker ps -a --format '{{.Names}}' | grep -qx "$NAME"; then
+            docker start "$NAME" >/dev/null
+          else
+            docker run -d --name "$NAME" --network "$NET" --restart unless-stopped --memory 1g \
+              -e discovery.type=single-node -e xpack.security.enabled=false -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
+              -v atlas-es-data:/usr/share/elasticsearch/data \
+              docker.elastic.co/elasticsearch/elasticsearch:8.17.0 >/dev/null
+          fi
+
+          for i in $(seq 1 40); do
+            if docker exec "$NAME" curl -s http://localhost:9200/_cluster/health | grep -qE '"status":"(green|yellow)"'; then
+              echo "ready=yes" >> "$GITHUB_OUTPUT"; say "Elasticsearch: started and healthy."; exit 0
+            fi
+            sleep 5
+          done
+          echo "ready=no" >> "$GITHUB_OUTPUT"
+          echo "::warning::Elasticsearch did not become healthy; the app is deployed without keyword search."
+          say "Elasticsearch: started but not healthy after 200 s. The app was deployed without keyword search."
+          docker logs --tail 30 "$NAME" || true
+          exit 0
+
       - name: Replace the running container
         env:
           # (IMAGE comes from the 'Work out the image address' step)
+          ES_READY: ${{ steps.es.outputs.ready }}   # 'yes' when Elasticsearch runs next to the app
           # --- secrets ---
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -274,22 +334,39 @@ jobs:
           HITL_ENABLED: ${{ vars.HITL_ENABLED || secrets.HITL_ENABLED }}
           MEMORY_TURNS: ${{ vars.MEMORY_TURNS || secrets.MEMORY_TURNS }}
           PII_MODE: ${{ vars.PII_MODE || secrets.PII_MODE }}
+          PINECONE_METRIC: ${{ vars.PINECONE_METRIC || secrets.PINECONE_METRIC }}
+          SPARSE_MODEL: ${{ vars.SPARSE_MODEL || secrets.SPARSE_MODEL }}
+          HYBRID_ALPHA: ${{ vars.HYBRID_ALPHA || secrets.HYBRID_ALPHA }}
+          KEYWORD_BACKEND: ${{ vars.KEYWORD_BACKEND || secrets.KEYWORD_BACKEND }}
+          ELASTIC_URL: ${{ vars.ELASTIC_URL || secrets.ELASTIC_URL }}
+          ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY || vars.ELASTIC_API_KEY }}
+          ELASTIC_INDEX: ${{ vars.ELASTIC_INDEX || secrets.ELASTIC_INDEX }}
+          ELASTIC_MIN_SCORE: ${{ vars.ELASTIC_MIN_SCORE || secrets.ELASTIC_MIN_SCORE }}
+          ELASTIC_MIN_RATIO: ${{ vars.ELASTIC_MIN_RATIO || secrets.ELASTIC_MIN_RATIO }}
+          RRF_DENSE_WEIGHT: ${{ vars.RRF_DENSE_WEIGHT || secrets.RRF_DENSE_WEIGHT }}
+          RRF_KEYWORD_WEIGHT: ${{ vars.RRF_KEYWORD_WEIGHT || secrets.RRF_KEYWORD_WEIGHT }}
         run: |
           set -euo pipefail
 
           # Pass a setting to the container ONLY if it has a value. An empty value (for example
           # EMBED_DIM="") would override the app's default and make it crash at start-up.
+          # No Elastic Cloud URL configured but Elasticsearch runs next to the app: point the app at it (same network).
+          if [ -z "${ELASTIC_URL:-}" ] && [ "${ES_READY:-}" = "yes" ]; then export ELASTIC_URL=http://atlas-elasticsearch:9200; fi
+
           ARGS=()
           for name in GEMINI_API_KEY GROQ_API_KEY PINECONE_API_KEY DATABASE_URL RIUS_API_KEY \
                       AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION S3_BUCKET CHAT_PROVIDER_ORDER \
                       GEMINI_CHAT_MODELS GEMINI_EMBED_MODEL GROQ_CHAT_MODELS EMBED_DIM PINECONE_INDEX_NAME \
                       PINECONE_CLOUD PINECONE_REGION PINECONE_READY_TIMEOUT RIUS_SERVICE_NAME RIUS_DISABLED \
-                      RIUS_CAPTURE_CONTENT MAX_UPLOAD_BYTES MIN_RELEVANCE HITL_ENABLED MEMORY_TURNS PII_MODE; do
+                      RIUS_CAPTURE_CONTENT MAX_UPLOAD_BYTES MIN_RELEVANCE HITL_ENABLED MEMORY_TURNS PII_MODE \
+                      PINECONE_METRIC SPARSE_MODEL HYBRID_ALPHA KEYWORD_BACKEND ELASTIC_URL ELASTIC_API_KEY \
+                      ELASTIC_INDEX ELASTIC_MIN_SCORE ELASTIC_MIN_RATIO RRF_DENSE_WEIGHT RRF_KEYWORD_WEIGHT; do
             if [ -n "${!name:-}" ]; then ARGS+=(-e "$name"); fi
           done
 
           docker rm -f atlas-rag >/dev/null 2>&1 || true
-          docker run -d --name atlas-rag --restart unless-stopped -p 8000:8000 "${ARGS[@]}" "$IMAGE"
+          docker network inspect atlas-net >/dev/null 2>&1 || docker network create atlas-net >/dev/null
+          docker run -d --name atlas-rag --network atlas-net --restart unless-stopped -p 8000:8000 "${ARGS[@]}" "$IMAGE"
 
       - name: Verify the deployment
         run: |
@@ -303,6 +380,13 @@ jobs:
           echo "::error::Container did not become healthy (last status: $status)"
           docker logs --tail 100 atlas-rag
           exit 1
+
+      - name: Load existing documents into Elasticsearch
+        if: ${{ steps.es.outputs.ready == 'yes' }}
+        continue-on-error: true            # repeatable; searches still work from Pinecone if this fails
+        run: |
+          set -uo pipefail
+          docker exec atlas-rag python scripts/sync_to_elasticsearch.py 2>&1 | tail -12 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Remove old images
         run: docker image prune -f
