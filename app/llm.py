@@ -1,5 +1,7 @@
 """LLM connections: chat (Groq first, Gemini as failover) and Gemini embeddings."""
+import math
 import re
+import time
 from functools import lru_cache
 
 from app.config import settings
@@ -84,7 +86,54 @@ def embed(texts: list[str]) -> list[list[float]]:
     resp = _gemini().models.embed_content(
         model=s.gemini_embed_model, contents=texts,
         config=types.EmbedContentConfig(output_dimensionality=s.embed_dim))
-    return [e.values for e in resp.embeddings]
+    return [_normalize(list(e.values)) for e in resp.embeddings]
+
+
+SPARSE_BATCH = 48  # texts per Pinecone sparse-embedding request
+
+
+def _normalize(vec: list[float]) -> list[float]:
+    """Scale a vector to length 1. Needed for a dotproduct index (and harmless for cosine)."""
+    n = math.sqrt(sum(x * x for x in vec))
+    return [x / n for x in vec] if n else vec
+
+
+def _sparse_norm(indices, values) -> dict | None:
+    """Scale a sparse vector to length 1, so keyword and meaning scores are on the same 0-1 scale."""
+    n = math.sqrt(sum(v * v for v in values))
+    if not len(indices) or not n:
+        return None
+    return {'indices': [int(i) for i in indices], 'values': [round(float(v) / n, 6) for v in values]}
+
+
+@lru_cache
+def _pinecone():
+    from pinecone import Pinecone
+    return Pinecone(api_key=settings().pinecone_api_key)
+
+
+@trace('llm.sparse_embed', kind='embedding')
+def sparse_embed(texts: list[str], kind: str = 'passage') -> list[dict | None]:
+    """Keyword (sparse) vectors from Pinecone's hosted model, one {'indices','values'} per text.
+
+    kind='passage' for document chunks, kind='query' for questions. A text with no usable words gives None.
+    Raises if Pinecone fails twice, so the caller can fall back to dense-only search.
+    """
+    s = settings()
+    out: list[dict | None] = []
+    for i in range(0, len(texts), SPARSE_BATCH):
+        batch = [t if t and t.strip() else ' ' for t in texts[i:i + SPARSE_BATCH]]
+        for attempt in (1, 2):
+            try:
+                resp = _pinecone().inference.embed(model=s.sparse_model, inputs=batch,
+                                                   parameters={'input_type': kind, 'truncate': 'END'})
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(1.5)
+        out.extend(_sparse_norm(e['sparse_indices'], e['sparse_values']) for e in resp.data)
+    return out
 
 
 @trace('atlas.answer')

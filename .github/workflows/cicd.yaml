@@ -86,6 +86,9 @@ jobs:
           print("smoke test passed")
           PY
 
+      - name: Hybrid search tests (offline, no keys needed)
+        run: python test/test_hybrid.py
+
   # ===========================================================================
   # 2. CONTINUOUS DELIVERY: build the image and push it to Amazon ECR
   # ===========================================================================

@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="Inter, Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16a34a"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="820" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="40" y="38" font-size="24" font-weight="800" fill="#0f172a">Hybrid search in ONE Pinecone index</text>
+  <text x="40" y="62" font-size="14" fill="#475569">Every chunk record holds a dense vector (meaning) and a sparse vector (keywords). One query scores both.</text>
+
+  <!-- ============ 1. UPLOAD ============ -->
+  <text x="40" y="100" font-size="15" font-weight="700" fill="#6d28d9">1  UPLOAD  (once per chunk)</text>
+
+  <rect x="40" y="130" width="200" height="70" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="140" y="158" text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">Chunk of text</text>
+  <text x="140" y="178" text-anchor="middle" font-size="12" fill="#475569">from your PDF / DOCX / TXT</text>
+
+  <!-- split lines -->
+  <path d="M240,165 H270 V160 H298" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrB)"/>
+  <path d="M270,165 V112 H760 V128" fill="none" stroke="#ea580c" stroke-width="2" marker-end="url(#arrO)"/>
+
+  <!-- dense -->
+  <rect x="300" y="120" width="280" height="100" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="440" y="148" text-anchor="middle" font-size="15" font-weight="800" fill="#1e40af">DENSE vector  (meaning)</text>
+  <text x="440" y="171" text-anchor="middle" font-size="12.5" fill="#1e293b">Gemini embedding of the chunk</text>
+  <text x="440" y="190" text-anchor="middle" font-size="12.5" fill="#1e293b">1024 numbers, scaled to length 1</text>
+
+  <!-- sparse -->
+  <rect x="620" y="130" width="280" height="90" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+  <text x="760" y="157" text-anchor="middle" font-size="15" font-weight="800" fill="#9a3412">SPARSE vector  (keywords)</text>
+  <text x="760" y="179" text-anchor="middle" font-size="12.5" fill="#1e293b">Pinecone sparse model, input_type = passage</text>
+  <text x="760" y="198" text-anchor="middle" font-size="12.5" fill="#1e293b">{ word number : weight }, scaled to length 1</text>
+
+  <!-- stats (upload) -->
+  <rect x="940" y="130" width="230" height="90" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="1055" y="156" text-anchor="middle" font-size="14" font-weight="800" fill="#166534">No statistics file</text>
+  <text x="1055" y="177" text-anchor="middle" font-size="12" fill="#1e293b">the hosted model does the</text>
+  <text x="1055" y="194" text-anchor="middle" font-size="12" fill="#1e293b">weighting, nothing to store</text>
+  <path d="M940,175 H902" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrG)"/>
+
+  <!-- into Pinecone -->
+  <path d="M440,220 V338" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrB)"/>
+  <path d="M760,220 V338" fill="none" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="452" y="285" font-size="12" fill="#1e40af">upsert: values</text>
+  <text x="772" y="285" font-size="12" fill="#9a3412">upsert: sparse_values</text>
+
+  <!-- ============ PINECONE ============ -->
+  <rect x="200" y="340" width="800" height="182" rx="16" fill="#ede9fe" stroke="#6d28d9" stroke-width="2.5"/>
+  <text x="600" y="368" text-anchor="middle" font-size="16" font-weight="800" fill="#4c1d95">PINECONE  -  one index  -  dense, metric = dotproduct</text>
+
+  <rect x="230" y="383" width="740" height="122" rx="10" fill="#ffffff" stroke="#a78bfa" stroke-width="1.5"/>
+  <g font-family="Consolas, 'Courier New', monospace" font-size="13">
+    <text x="250" y="408" fill="#0f172a">id:             doc7:1:3</text>
+    <text x="250" y="431" fill="#1d4ed8">values:         [0.012, -0.034, 0.081, ...  1024 numbers]      <tspan fill="#64748b">&lt;- dense</tspan></text>
+    <text x="250" y="454" fill="#c2410c">sparse_values:  { indices:[455, 812, 2290], values:[0.9, 0.9, 0.4] }  <tspan fill="#64748b">&lt;- sparse</tspan></text>
+    <text x="250" y="477" fill="#0f172a">metadata:       { text, doc_id, page, allowed_groups, sparse_model }</text>
+    <text x="250" y="497" fill="#64748b" font-size="11.5">namespace = tenant   (the filter on allowed_groups keeps each user to their own documents)</text>
+  </g>
+
+  <!-- ============ 2. QUESTION ============ -->
+  <text x="40" y="562" font-size="15" font-weight="700" fill="#6d28d9">2  QUESTION  (every time)</text>
+
+  <rect x="40" y="598" width="200" height="70" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="140" y="626" text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">User question</text>
+  <text x="140" y="646" text-anchor="middle" font-size="12" fill="#475569">after the guardrails + PII mask</text>
+
+  <path d="M240,633 H270 V628 H298" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrB)"/>
+  <path d="M270,633 V580 H760 V596" fill="none" stroke="#ea580c" stroke-width="2" marker-end="url(#arrO)"/>
+
+  <rect x="300" y="588" width="280" height="100" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="440" y="615" text-anchor="middle" font-size="15" font-weight="800" fill="#1e40af">DENSE query</text>
+  <text x="440" y="638" text-anchor="middle" font-size="12.5" fill="#1e293b">Gemini embedding of the question</text>
+  <text x="440" y="658" text-anchor="middle" font-size="12.5" fill="#1e293b">scaled to length 1, then  x alpha</text>
+
+  <rect x="620" y="598" width="280" height="90" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+  <text x="760" y="625" text-anchor="middle" font-size="15" font-weight="800" fill="#9a3412">SPARSE query</text>
+  <text x="760" y="647" text-anchor="middle" font-size="12.5" fill="#1e293b">Pinecone sparse model, input_type = query</text>
+  <text x="760" y="666" text-anchor="middle" font-size="12.5" fill="#1e293b">scaled to length 1, then  x (1 - alpha)</text>
+
+  <rect x="940" y="598" width="230" height="90" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="1055" y="624" text-anchor="middle" font-size="14" font-weight="800" fill="#166534">Same model both sides</text>
+  <text x="1055" y="645" text-anchor="middle" font-size="12" fill="#1e293b">chunks and questions are</text>
+  <text x="1055" y="662" text-anchor="middle" font-size="12" fill="#1e293b">weighted consistently</text>
+  <path d="M940,643 H902" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrG)"/>
+
+  <!-- query up into Pinecone -->
+  <path d="M440,588 V524" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrB)"/>
+  <path d="M760,598 V524" fill="none" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="590" y="545" text-anchor="end" font-size="12.5" font-weight="700" fill="#4c1d95">ONE query call</text>
+  <text x="612" y="545" font-size="12.5" font-weight="700" fill="#475569">ranked chunks</text>
+
+  <!-- result -->
+  <path d="M600,524 V700" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+    <rect x="330" y="706" width="540" height="84" rx="12" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="600" y="732" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a">Pinecone adds the two scores and ranks the chunks</text>
+  <text x="600" y="753" text-anchor="middle" font-size="12.5" fill="#1e293b">score = (dense . dense query) + (sparse . sparse query)</text>
+  <text x="600" y="773" text-anchor="middle" font-size="12.5" fill="#1e293b">top chunks  -  mask PII  -  LLM answers  -  show only cited sources</text>
+
+  <!-- legend -->
+  <g font-size="12" fill="#334155">
+    <rect x="40" y="722" width="14" height="14" fill="#dbeafe" stroke="#2563eb"/><text x="62" y="734">dense = meaning</text>
+    <rect x="40" y="744" width="14" height="14" fill="#ffedd5" stroke="#ea580c"/><text x="62" y="756">sparse = exact words</text>
+    <rect x="40" y="766" width="14" height="14" fill="#dcfce7" stroke="#16a34a" stroke-dasharray="3 2"/><text x="62" y="778">hosted model, no stats file</text>
+  </g>
+</svg>

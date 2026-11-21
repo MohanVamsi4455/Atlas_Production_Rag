@@ -13,10 +13,10 @@ from pypdf import PdfReader
 from app.aws import get_object_bytes
 from app.config import settings
 from app.db import audit, connection
-from app.llm import embed
+from app.llm import embed, sparse_embed
 from app.observability import initialize, trace
 from app.pii import merge, redact
-from app.vector import upsert_chunks
+from app.vector import is_hybrid, upsert_chunks
 
 initialize()
 
@@ -78,9 +78,15 @@ def process_s3_key(key):
         vectors = []
         for i in range(0, len(texts), EMBED_BATCH):
             vectors.extend(embed(texts[i:i + EMBED_BATCH]))
+        sparse = None
+        if is_hybrid():
+            try:
+                sparse = sparse_embed(texts, 'passage')
+            except Exception:  # keep the document searchable by meaning even if the keyword model fails
+                log.warning('Sparse embedding failed for %s; storing dense vectors only', doc['id'], exc_info=True)
         upsert_chunks(doc['tenant_id'], str(doc['id']), doc['title'], list(doc['allowed_groups']),
                       texts, vectors, version=doc['current_version'], owner_sub=doc['owner_sub'],
-                      pages=[page for page, _ in parts])
+                      pages=[page for page, _ in parts], sparse=sparse)
         with connection() as conn:
             conn.execute("UPDATE documents SET status='ready', pii=%s WHERE id=%s", (Jsonb(pii), doc['id']))
             audit(conn, doc['owner_sub'], doc['tenant_id'], 'ingest_ready',

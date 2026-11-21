@@ -14,10 +14,14 @@ except ImportError:
 from langgraph.graph import END, START, StateGraph
 
 from app.guardrails import check_input, check_output, is_refusal
-from app.llm import answer, embed
+import logging
+
+from app.llm import answer, embed, sparse_embed
 from app.observability import trace
 from app.pii import merge, redact
-from app.vector import search
+from app.vector import is_hybrid, search
+
+log = logging.getLogger('atlas.graph')
 
 
 class State(TypedDict, total=False):
@@ -42,7 +46,13 @@ def retrieve(s):
     # Include the most recent user question for short follow-ups such as 'summarize that'.
     prior_questions = [m['content'] for m in s.get('history', []) if m['role'] == 'user']
     query = (prior_questions[-1] + '\nFollow-up: ' + s['question']) if prior_questions else s['question']
-    hits = search(p.tenant, embed([query])[0], list(p.groups), top_k=5, owner_sub=p.subject)
+    sparse_q = None
+    if is_hybrid():
+        try:
+            sparse_q = sparse_embed([query], 'query')[0]
+        except Exception:  # keyword model unavailable: answer with meaning-only search instead of failing
+            log.warning('Sparse query embedding failed; using dense-only search', exc_info=True)
+    hits = search(p.tenant, embed([query])[0], list(p.groups), top_k=5, owner_sub=p.subject, sparse_query=sparse_q)
     pii = {}
     for h in hits:  # mask PII before the text reaches the LLM or the screen
         h['text'], found = redact(h['text'] or '')

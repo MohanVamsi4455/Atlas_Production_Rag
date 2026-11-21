@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     pinecone_cloud: str = 'aws'
     pinecone_region: str = 'us-east-1'
     pinecone_ready_timeout: int = 180
+    # Metric for NEW indexes: dotproduct = hybrid (dense + sparse in every record), cosine = dense only.
+    # An existing index keeps its own metric; the app adapts to it.
+    pinecone_metric: str = 'dotproduct'
+    # Pinecone's hosted sparse (keyword) model. It needs no statistics file on our side.
+    sparse_model: str = 'pinecone-sparse-english-v0'
+    # Balance between meaning (dense) and keywords (sparse): 1.0 = only meaning, 0.0 = only keywords.
+    hybrid_alpha: float = 0.6
 
     # PostgreSQL (Render External Database URL)
     database_url: str = ''
