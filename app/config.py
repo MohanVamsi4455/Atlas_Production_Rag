@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,18 @@ def _split(value: str) -> list[str]:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+
+    @field_validator('*', mode='before')
+    @classmethod
+    def _tidy(cls, value):
+        """Ignore stray spaces, line breaks and wrapping quotes. Pasting a secret into GitHub, Docker or a hosting
+        panel often adds a hidden trailing newline (or the quotes from .env), which breaks values such as
+        DATABASE_URL ("sslmode=require" + newline) or the Pinecone index name."""
+        if isinstance(value, str):
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                value = value[1:-1].strip()
+        return value
 
     # AWS
     aws_region: str = 'ap-south-1'

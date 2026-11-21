@@ -1,9 +1,11 @@
 import logging
 import re
 import uuid
+
+import psycopg
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -29,6 +31,17 @@ app=FastAPI(title='Atlas Enterprise RAG',docs_url='/api/docs')
 
 @app.on_event('shutdown')
 def _shutdown(): flush()
+
+
+@app.exception_handler(psycopg.Error)
+async def database_error(request:Request,exc:psycopg.Error):
+    """Turn database failures into a readable message instead of a bare 500 'Request failed'."""
+    log.error('Database error on %s: %s: %s',request.url.path,type(exc).__name__,str(exc).splitlines()[0] if str(exc) else '')
+    if isinstance(exc,psycopg.OperationalError):
+        msg=('Could not connect to the database. Check that DATABASE_URL is correct and that the database is running '
+             'and its security group allows this server on port 5432.')
+        return JSONResponse(status_code=503,content={'detail':msg})
+    return JSONResponse(status_code=500,content={'detail':'A database error occurred. See the server logs for details.'})
 
 app.mount('/static',StaticFiles(directory=BASE/'static'),name='static')
 templates=Jinja2Templates(directory=BASE/'templates')
