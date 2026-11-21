@@ -247,9 +247,10 @@ jobs:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RIUS_API_KEY: ${{ secrets.RIUS_API_KEY }}
-          # On EC2, prefer an IAM role on the instance; leave these two unset and the app uses the role.
-          AWS_ACCESS_KEY_ID: ${{ secrets.APP_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.APP_AWS_SECRET_ACCESS_KEY }}
+          # Keys the app uses for S3: APP_AWS_* if you set them, otherwise the same AWS_* keys used for the ECR push.
+          # (Better still: give the EC2 instance an IAM role and leave all of these unset.)
+          AWS_ACCESS_KEY_ID: ${{ secrets.APP_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.APP_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
           # --- variables ---
           AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
           S3_BUCKET: ${{ vars.S3_BUCKET || secrets.S3_BUCKET }}
